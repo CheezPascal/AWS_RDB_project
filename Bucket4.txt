@@ -1,0 +1,108 @@
+# Specify the provider
+provider "aws" {
+  region = "us-east-1"
+}
+
+# Create a VPC with DNS support enabled
+resource "aws_vpc" "example" {
+  cidr_block = "10.0.0.0/16"
+
+  enable_dns_support   = true # Enable DNS resolution
+  enable_dns_hostnames = true # Enable DNS hostnames
+
+  tags = {
+    Name = "example-vpc"
+  }
+}
+
+# Create a public subnet (this subnet will have a route to an internet gateway)
+resource "aws_subnet" "example" {
+  count                   = 2
+  vpc_id                  = aws_vpc.example.id
+  cidr_block              = "10.0.${count.index}.0/24"
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
+  map_public_ip_on_launch = true # This ensures EC2 instances in this subnet will receive a public IP on launch
+}
+
+# Create an internet gateway to allow public access
+resource "aws_internet_gateway" "example" {
+  vpc_id = aws_vpc.example.id
+}
+
+# Create a route table for the public subnet
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.example.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.example.id
+  }
+}
+
+# Associate the route table with the public subnet
+resource "aws_route_table_association" "example" {
+  count          = 2
+  subnet_id      = aws_subnet.example[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# Create a security group to allow inbound access to the database
+resource "aws_security_group" "example" {
+  name_prefix = "rds-sg-"
+  vpc_id      = aws_vpc.example.id
+
+  ingress {
+    from_port   = 3306 # Port for MySQL
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Open to all (restrict for production)
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Create an RDS instance with public accessibility
+resource "aws_db_instance" "example" {
+  identifier             = "mydatabase"
+  allocated_storage      = 5
+  storage_type           = "gp2"
+  engine                 = "mysql"
+  engine_version         = "8.0"
+  instance_class         = "db.t3.micro"
+  username               = "admin"
+  password               = "admin123" # Use a secure method for production
+  parameter_group_name   = "default.mysql8.0"
+  db_subnet_group_name   = aws_db_subnet_group.example.name
+  vpc_security_group_ids = [aws_security_group.example.id]
+  skip_final_snapshot    = true
+
+  # Make the instance publicly accessible
+  publicly_accessible = true
+}
+
+# Create an RDS subnet group
+resource "aws_db_subnet_group" "example" {
+  name       = "example"
+  subnet_ids = aws_subnet.example[*].id
+}
+
+# Output the RDS endpoint (hostname) and port for connecting
+output "db_endpoint" {
+  value       = aws_db_instance.example.endpoint
+  description = "The endpoint to connect to the RDS instance"
+}
+
+output "db_port" {
+  value       = aws_db_instance.example.port
+  description = "The port to connect to the RDS instance"
+}
+
+# Data source to get availability zones
+data "aws_availability_zones" "available" {
+  state = "available"
+}

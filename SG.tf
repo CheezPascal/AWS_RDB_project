@@ -1,4 +1,4 @@
-
+/*
 # Create a subnet group
 resource "aws_db_subnet_group" "default" {
   name       = "main"
@@ -11,9 +11,9 @@ resource "aws_db_subnet_group" "default" {
 
 # Create two private subnets
 resource "aws_subnet" "private" {
-  count = 2
+  count      = 2
   vpc_id     = aws_vpc.main.id
-  cidr_block = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)   
+  cidr_block = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
 
 
   availability_zone = data.aws_availability_zones.available.names[count.index]
@@ -47,3 +47,4 @@ resource "aws_security_group" "default" {
     Name = "rds_security_group"
   }
 }
+*/ 

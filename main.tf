@@ -1,46 +1,67 @@
-# Configure the AWS Provider
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
-  }
-}
-
 provider "aws" {
-  region = "us-west-2"
+  region = "us-west-2" # Change to your preferred region
 }
 
 # Create a VPC
-resource "aws_vpc" "main" {
+resource "aws_vpc" "example" {
   cidr_block = "10.0.0.0/16"
+}
 
-  tags = {
-    Name = "main"
+# Create public subnets
+resource "aws_subnet" "example" {
+  count             = 2
+  vpc_id            = aws_vpc.example.id
+  cidr_block        = "10.0.${count.index}.0/24"
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+}
+
+# Create an RDS subnet group
+resource "aws_db_subnet_group" "example" {
+  name       = "example"
+  subnet_ids = aws_subnet.example[*].id
+}
+
+# Create a security group
+resource "aws_security_group" "example" {
+  name_prefix = "rds-sg-"
+  vpc_id      = aws_vpc.example.id
+
+  ingress {
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Open to all (not recommended for production)
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-
-# Retrieve available availability zones
-data "aws_availability_zones" "available" {}
-
 # Create an RDS instance
-resource "aws_db_instance" "default" {
+resource "aws_db_instance" "example" {
   allocated_storage      = 20
   storage_type           = "gp2"
-  engine                 = "mysql" # Replace with your desired engine
-  engine_version         = "8.0"   # Replace with your desired engine version
+  engine                 = "mysql"
+  engine_version         = "8.0"
   instance_class         = "db.t3.micro"
-  identifier             = "aws-rds-instance"
-  username               = "admin"    # Replace with your desired username
-  password               = "password" # Replace with your desired password
-  db_subnet_group_name   = aws_db_subnet_group.default.name
-  vpc_security_group_ids = [aws_security_group.default.id]
+  identifier             = "mydatabase"
+  username               = "admin"
+  password               = "admin123" # Use a secure method to manage credentials
+  parameter_group_name   = "default.mysql8.0"
+  db_subnet_group_name   = aws_db_subnet_group.example.name
+  vpc_security_group_ids = [aws_security_group.example.id]
   skip_final_snapshot    = true
 
-
   tags = {
-    Name = "aws-rds-instance"
+    Name = "MySQL-DB"
   }
+}
+
+# Data source to get availability zones
+data "aws_availability_zones" "available" {
+  state = "available"
 }

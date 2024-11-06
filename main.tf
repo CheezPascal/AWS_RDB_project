@@ -73,10 +73,25 @@ resource "aws_instance" "my_instance" {
 
   user_data = <<-EOF
     #!/bin/bash
-    apt-get update -y
-    apt-get install mysql-server -y
-    systemctl start mysql
-    systemctl enable mysql
+    sudo apt update -y
+    sudo apt install mysql-server -y
+    sudo systemctl start mysql
+    sudo systemctl enable mysql
+
+    # Set MySQL root password and apply secure configuration (non-interactive)
+    sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'your_root_password';"
+    sudo mysql -e "DELETE FROM mysql.user WHERE User='';"
+    sudo mysql -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+    sudo mysql -e "DROP DATABASE IF EXISTS test;"
+    sudo mysql -e "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"
+    sudo mysql -e "FLUSH PRIVILEGES;"
+
+    # Create a new database, admin user, and grant privileges
+    sudo mysql -e "CREATE DATABASE my_database;"
+    sudo mysql -e "CREATE USER 'admin'@'%' IDENTIFIED BY 'admin7946';"
+    sudo mysql -e "GRANT ALL PRIVILEGES ON my_database.* TO 'admin'@'%';"
+    sudo mysql -e "FLUSH PRIVILEGES;"
+
   EOF
 
   tags = {

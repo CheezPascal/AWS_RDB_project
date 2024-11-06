@@ -69,7 +69,10 @@ resource "aws_instance" "my_instance" {
   ami             = "ami-08c40ec9ead489470" # Ubuntu 20.04 in us-east-1, update with your preferred version
   instance_type   = "t2.micro"              # Adjust to your needs and AWS Free Tier availability
   subnet_id       = aws_subnet.my_subnet.id
-  security_groups = [aws_security_group.my_sg.name]
+  security_groups = [aws_security_group.my_sg.id]
+
+  # Specify the SSH key name here
+  key_name = "mk"
 
   user_data = <<-EOF
     #!/bin/bash

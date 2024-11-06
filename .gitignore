@@ -2,3 +2,4 @@
 settings.json
 .terraform
 .terraform.lock.hcl
+terraform.tfstate
